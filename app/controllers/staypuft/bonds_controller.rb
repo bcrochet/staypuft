@@ -47,7 +47,13 @@ module Staypuft
     end
 
     def add_slave
-      @bonds.each { |bond| bond.add_slave(params[:interface]) }
+      @bonds.each do |bond|
+        bond.add_slave(params[:interface])
+        unless bond.mac
+          bond.mac = bond.host.interfaces.where(
+            identifier: params[:interface]).first.mac
+        end
+      end
 
       ActiveRecord::Base.transaction do
         results = @bonds.map(&:save)
@@ -73,7 +79,14 @@ module Staypuft
 
 
     def remove_slave
-      @bonds.each { |bond| bond.remove_slave(params[:interface]) }
+      @bonds.each do |bond|
+        interface_mac = bond.host.interfaces.where(identifier: params[:interface]).first.mac
+        bond.remove_slave(params[:interface])
+        if bond.mac == interface_mac
+          bond.mac = bond.host.interfaces.where(
+            identifier: bond.attached_devices_identifiers.first).first.mac
+        end
+      end
 
       ActiveRecord::Base.transaction do
         results = @bonds.map(&:save)
